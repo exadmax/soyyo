@@ -15,18 +15,55 @@ class SoyYoApp extends StatelessWidget {
       title: 'Garantir',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SplashPage();
-          }
-          if (snapshot.data != null) {
-            return const ProductsPage();
-          }
-          return const LoginPage();
-        },
-      ),
+      home: const _AuthGate(),
+    );
+  }
+}
+
+class _AuthGate extends StatefulWidget {
+  const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  bool _splashDone = false;
+  bool _authResolved = false;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _authResolved = true;
+        });
+      }
+    });
+  }
+
+  void _onSplashDone() {
+    if (mounted) setState(() => _splashDone = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget page;
+
+    if (!_splashDone || !_authResolved) {
+      page = SplashPage(key: const ValueKey('splash'), onDone: _onSplashDone);
+    } else if (_user != null) {
+      page = const ProductsPage(key: ValueKey('products'));
+    } else {
+      page = const LoginPage(key: ValueKey('login'));
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: page,
     );
   }
 }

@@ -3,7 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  const SplashPage({super.key, this.onDone});
+
+  final VoidCallback? onDone;
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -56,6 +58,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     ]).animate(_cycleController);
 
     _cycleController.repeat();
+
+    // Garante que a splash fica visível pelo menos 2s (um ciclo de animação)
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) widget.onDone?.call();
+    });
   }
 
   @override

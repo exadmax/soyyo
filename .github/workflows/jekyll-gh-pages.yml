@@ -36,10 +36,10 @@ jobs:
       - name: Inject Firebase credentials
         env:
           FIREBASE_OPTIONS: ${{ secrets.FIREBASE_OPTIONS_DART }}
-        run: printf "%s" "$FIREBASE_OPTIONS" > lib/firebase_options.dart
+        run: python3 -c "import os; open('lib/firebase_options.dart','w').write(os.environ['FIREBASE_OPTIONS'])"
 
       - name: Build Flutter Web
-        run: flutter build web --release --base-href "/soyyo/"
+        run: flutter build web --wasm --release --base-href "/soyyo/"
 
       - name: Add .nojekyll
         run: touch build/web/.nojekyll

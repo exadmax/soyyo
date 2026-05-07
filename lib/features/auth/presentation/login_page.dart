@@ -20,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
@@ -65,6 +66,23 @@ class _LoginPageState extends State<LoginPage> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      await _authService.signInWithGoogle();
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AuthService.errorMessage(e))),
+        );
+      }
+    } catch (_) {
+      // usuário cancelou o popup do Google
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -344,6 +362,41 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 12),
 
+                      // Divisor "ou"
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'ou',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Botão Google
+                      OutlinedButton.icon(
+                        onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: _isGoogleLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const _GoogleIcon(),
+                        label: const Text('Entrar com Google'),
+                      ),
+
+                      const SizedBox(height: 8),
+
                       TextButton(
                         onPressed: _isLoading ? null : _toggleMode,
                         child: Text(
@@ -362,6 +415,63 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+}
+
+class _GoogleIcon extends StatelessWidget {
+  const _GoogleIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _GoogleLogoPainter();
+  }
+}
+
+class _GoogleLogoPainter extends StatelessWidget {
+  const _GoogleLogoPainter();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(18, 18),
+      painter: _GooglePainter(),
+    );
+  }
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final red = Paint()..color = const Color(0xFFEA4335);
+    final blue = Paint()..color = const Color(0xFF4285F4);
+    final yellow = Paint()..color = const Color(0xFFFBBC05);
+    final green = Paint()..color = const Color(0xFF34A853);
+
+    // Arco vermelho (topo-esquerda)
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -2.6, 1.85, false, red..strokeWidth = w * 0.22..style = PaintingStyle.stroke);
+    // Arco azul (direita)
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -0.75, 1.57, false, blue..strokeWidth = w * 0.22..style = PaintingStyle.stroke);
+    // Arco amarelo (baixo)
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 0.82, 1.0, false, yellow..strokeWidth = w * 0.22..style = PaintingStyle.stroke);
+    // Arco verde (baixo-esquerda)
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 1.82, 0.78, false, green..strokeWidth = w * 0.22..style = PaintingStyle.stroke);
+
+    // Barra horizontal azul do "G"
+    final barPaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..strokeWidth = h * 0.22
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(w * 0.5, h * 0.5),
+      Offset(w * 0.95, h * 0.5),
+      barPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GooglePainter old) => false;
 }
 
 class _FullCirclePainter extends CustomPainter {

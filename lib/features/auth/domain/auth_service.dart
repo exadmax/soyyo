@@ -1,9 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
-  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth, GoogleSignIn? googleSignIn})
+      : _auth = auth ?? FirebaseAuth.instance,
+        _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   final FirebaseAuth _auth;
+  final GoogleSignIn _googleSignIn;
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
@@ -25,11 +29,23 @@ class AuthService {
     await credential.user?.updateDisplayName(name.trim());
   }
 
+  Future<UserCredential?> signInWithGoogle() async {
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null; // usuário cancelou
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    return _auth.signInWithCredential(credential);
+  }
+
   Future<void> signOut() async {
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  /// Human-readable Portuguese message for FirebaseAuthException codes.
   static String errorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
@@ -45,6 +61,8 @@ class AuthService {
         return 'Endereço de e-mail inválido.';
       case 'too-many-requests':
         return 'Muitas tentativas. Tente novamente mais tarde.';
+      case 'account-exists-with-different-credential':
+        return 'Já existe uma conta com este e-mail usando outro método de login.';
       default:
         return e.message ?? 'Erro de autenticação.';
     }

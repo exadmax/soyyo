@@ -39,7 +39,7 @@ jobs:
         run: python3 -c "import os; open('lib/firebase_options.dart','w').write(os.environ['FIREBASE_OPTIONS'])"
 
       - name: Build Flutter Web
-        run: flutter build web --wasm --release --base-href "/soyyo/"
+        run: flutter build web --release --target lib/main_web.dart --base-href "/soyyo/"
 
       - name: Add .nojekyll
         run: touch build/web/.nojekyll

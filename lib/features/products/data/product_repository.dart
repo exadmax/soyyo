@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,11 +22,13 @@ class ProductRepository {
 
   Isar get _isar => IsarDatabase.instance;
 
+  String get _uid => FirebaseAuth.instance.currentUser!.uid;
+
   CollectionReference<Map<String, dynamic>> get _productsRef =>
-      _firestore.collection('products');
+      _firestore.collection('users').doc(_uid).collection('products');
 
   CollectionReference<Map<String, dynamic>> get _categoriesRef =>
-      _firestore.collection('categories');
+      _firestore.collection('users').doc(_uid).collection('categories');
 
   // ── Products ──────────────────────────────────────────────────────────────
 

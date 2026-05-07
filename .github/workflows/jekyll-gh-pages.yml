@@ -30,8 +30,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate Isar schemas
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Inject Firebase credentials
+        env:
+          FIREBASE_OPTIONS: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: printf "%s" "$FIREBASE_OPTIONS" > lib/firebase_options.dart
+
       - name: Build Flutter Web
-        run: flutter build web --release --target lib/main_preview.dart --base-href "/soyyo/"
+        run: flutter build web --release --base-href "/soyyo/"
 
       - name: Add .nojekyll
         run: touch build/web/.nojekyll

@@ -43,6 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+
+# Local SDK and internal tooling/setup artifacts
+/android/local.properties
+claude.txt
+FLUTTER_SETUP_STATUS.md
+ANDROID_BUILD_SETUP.md
 
 # Firebase credentials — use GitHub Secret FIREBASE_OPTIONS_DART
 lib/firebase_options.dart

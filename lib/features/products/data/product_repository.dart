@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
 
@@ -20,6 +21,7 @@ class ProductRepository {
 
   static const _syncInterval = Duration(days: 14);
 
+  // Only accessed on Android; never called on web (all paths guarded by kIsWeb).
   Isar get _isar => IsarDatabase.instance;
 
   String get _uid => FirebaseAuth.instance.currentUser!.uid;
@@ -32,12 +34,20 @@ class ProductRepository {
 
   // ── Products ──────────────────────────────────────────────────────────────
 
+  /// Web → Firestore real-time stream.
+  /// Android → Isar local stream (instant, offline).
   Stream<List<Product>> watchProducts() {
+    if (kIsWeb) {
+      return _productsRef
+          .orderBy('warrantyEndDate')
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => Product.fromDoc(d)).toList());
+    }
     return _isar.productIsarSchemas
         .where()
         .sortByWarrantyEndDate()
         .watch(fireImmediately: true)
-        .map((schemas) => schemas.map((s) => s.toDomain()).toList());
+        .map((list) => list.map((s) => s.toDomain()).toList());
   }
 
   Future<String> saveProduct(Product product) async {
@@ -53,40 +63,73 @@ class ProductRepository {
       description: product.description,
     );
 
-    await _isar.writeTxn(() async {
-      await _isar.productIsarSchemas.put(ProductIsarSchema.fromDomain(updated));
-    });
-
-    _productsRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
-
+    if (kIsWeb) {
+      // On web, await Firestore so the stream emits the new value immediately.
+      await _productsRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
+    } else {
+      await _isar.writeTxn(() async {
+        await _isar.productIsarSchemas.put(ProductIsarSchema.fromDomain(updated));
+      });
+      // Fire-and-forget on Android: Isar stream already updated the UI.
+      _productsRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
+    }
     return docId;
   }
 
   Future<void> deleteProduct(String productId) async {
-    await _isar.writeTxn(() async {
-      await _isar.productIsarSchemas.delete(fastHash(productId));
-    });
-    _productsRef.doc(productId).delete();
+    if (kIsWeb) {
+      await _productsRef.doc(productId).delete();
+    } else {
+      await _isar.writeTxn(() async {
+        await _isar.productIsarSchemas.delete(fastHash(productId));
+      });
+      _productsRef.doc(productId).delete();
+    }
   }
 
   // ── Categories ────────────────────────────────────────────────────────────
 
+  /// Web → Firestore real-time stream.
+  /// Android → Isar local stream.
   Stream<List<ProductCategory>> watchCategories() {
+    if (kIsWeb) {
+      return _categoriesRef
+          .orderBy('name')
+          .snapshots()
+          .map((snap) => snap.docs
+              .map((d) => ProductCategory.fromMap(d.id, d.data()))
+              .toList());
+    }
     return _isar.categoryIsarSchemas
         .where()
         .sortByName()
         .watch(fireImmediately: true)
-        .map((schemas) => schemas.map((s) => s.toDomain()).toList());
+        .map((list) => list.map((s) => s.toDomain()).toList());
   }
 
   Future<void> saveCategory(ProductCategory category) async {
     final docId = category.id.isEmpty ? _uuid.v4() : category.id;
     final updated = ProductCategory(id: docId, name: category.name, isDefault: category.isDefault);
 
-    await _isar.writeTxn(() async {
-      await _isar.categoryIsarSchemas.put(CategoryIsarSchema.fromDomain(updated));
-    });
-    _categoriesRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
+    if (kIsWeb) {
+      await _categoriesRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
+    } else {
+      await _isar.writeTxn(() async {
+        await _isar.categoryIsarSchemas.put(CategoryIsarSchema.fromDomain(updated));
+      });
+      _categoriesRef.doc(docId).set(updated.toMap(), SetOptions(merge: true));
+    }
+  }
+
+  Future<void> deleteCategory(String categoryId) async {
+    if (kIsWeb) {
+      await _categoriesRef.doc(categoryId).delete();
+    } else {
+      await _isar.writeTxn(() async {
+        await _isar.categoryIsarSchemas.delete(fastHash(categoryId));
+      });
+      _categoriesRef.doc(categoryId).delete();
+    }
   }
 
   Future<void> seedDefaultCategories() async {
@@ -96,20 +139,22 @@ class ProductRepository {
       ProductCategory(id: 'default-servicos', name: 'Servicos', isDefault: true),
     ];
 
-    for (final category in defaults) {
-      final exists = await _isar.categoryIsarSchemas.get(fastHash(category.id));
-      if (exists == null) {
-        await saveCategory(category);
+    for (final cat in defaults) {
+      if (kIsWeb) {
+        final doc = await _categoriesRef.doc(cat.id).get();
+        if (!doc.exists) await saveCategory(cat);
+      } else {
+        final exists = await _isar.categoryIsarSchemas.get(fastHash(cat.id));
+        if (exists == null) await saveCategory(cat);
       }
     }
   }
 
-  // ── Periodic Firestore sync ───────────────────────────────────────────────
+  // ── Periodic Firestore sync (Android only) ────────────────────────────────
 
-  /// Syncs from Firestore only if [_syncInterval] has elapsed since the last
-  /// successful sync (or if the app has never synced before).
-  /// Safe to call fire-and-forget from initState.
+  /// No-op on web — Firestore streams already keep the UI in sync.
   Future<void> syncIfNeeded() async {
+    if (kIsWeb) return;
     if (!await _isSyncDue()) return;
     await _fetchFromFirestore();
     await _markSynced();

@@ -19,7 +19,7 @@ class IsarDatabase {
     ];
 
     if (kIsWeb) {
-      _isar = await Isar.open(schemas);
+      _isar = await Isar.open(schemas, directory: '.');
     } else {
       final dir = await getApplicationDocumentsDirectory();
       _isar = await Isar.open(schemas, directory: dir.path);

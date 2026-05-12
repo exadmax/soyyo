@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/login_page.dart';
-import '../features/products/presentation/products_page.dart';
+import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/splash/presentation/splash_page.dart';
 
 class SoyYoApp extends StatelessWidget {
@@ -56,7 +56,7 @@ class _AuthGateState extends State<_AuthGate> {
     if (!_splashDone || !_authResolved) {
       page = SplashPage(key: const ValueKey('splash'), onDone: _onSplashDone);
     } else if (_user != null) {
-      page = const ProductsPage(key: ValueKey('products'));
+      page = const DashboardPage(key: ValueKey('dashboard'));
     } else {
       page = const LoginPage(key: ValueKey('login'));
     }

@@ -54,13 +54,18 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _authService.signInWithGoogle();
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') return;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AuthService.errorMessage(e))),
         );
       }
-    } catch (_) {
-      // user cancelled Google popup
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao entrar com Google: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
     }

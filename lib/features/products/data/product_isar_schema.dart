@@ -27,7 +27,10 @@ class ProductIsarSchema {
         categoryId: categoryId,
         purchaseDate: purchaseDate,
         warrantyEndDate: warrantyEndDate,
-        guaranteeType: GuaranteeType.values.byName(guaranteeTypeName),
+        guaranteeType: GuaranteeType.values.firstWhere(
+          (e) => e.name == guaranteeTypeName,
+          orElse: () => GuaranteeType.standard,
+        ),
         noteImageUrl: noteImageUrl,
         description: description,
       );

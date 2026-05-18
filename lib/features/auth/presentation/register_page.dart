@@ -116,6 +116,12 @@ class _RegisterPageState extends State<RegisterPage> {
                     prefixIcon: Icon(Icons.badge_outlined),
                     hintText: '000.000.000-00',
                   ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final digits = v.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length != 11) return 'CPF incompleto';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

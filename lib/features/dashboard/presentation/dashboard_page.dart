@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +10,7 @@ import '../../products/data/product_repository.dart';
 import '../../products/domain/product.dart';
 import '../../products/presentation/product_form_page.dart';
 import '../../products/presentation/products_page.dart';
+import '../../../shared/web_apk_download_link.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _brand     = Color(0xFF1F6E8C);
@@ -108,8 +110,12 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _repo.seedDefaultCategories();
-    _repo.syncIfNeeded();
+    _repo.seedDefaultCategories().catchError((Object e) {
+      debugPrint('seedDefaultCategories: $e');
+    });
+    _repo.syncIfNeeded().catchError((Object e) {
+      debugPrint('syncIfNeeded: $e');
+    });
   }
 
   @override
@@ -172,9 +178,10 @@ class _DashBody extends StatelessWidget {
         .toList();
 
     final user = FirebaseAuth.instance.currentUser;
-    final name = user?.displayName?.split(' ').first ?? 'você';
-    final raw = user?.displayName ?? '?';
-    final initials = raw.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
+    final displayName = user?.displayName?.trim() ?? '';
+    final name = displayName.split(' ').where((s) => s.isNotEmpty).firstOrNull ?? 'você';
+    final raw = displayName.isNotEmpty ? displayName : '?';
+    final initials = raw.split(RegExp(r'\s+')).where((s) => s.isNotEmpty)
         .take(2).map((s) => s[0].toUpperCase()).join();
 
     return Stack(
@@ -189,6 +196,11 @@ class _DashBody extends StatelessWidget {
                 badgeCount: nSoon + nExpired,
                 onSettings: () => _showSettings(context),
               ),
+              if (kIsWeb)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _WebDownloadCard(),
+                ),
               Padding(
                 padding: const EdgeInsets.only(top: -56),
                 child: Padding(
@@ -375,15 +387,15 @@ class _Header extends StatelessWidget {
               width: 38, height: 38,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.22),
-                border: Border.all(color: Colors.white.withOpacity(0.28), width: 1.5),
+                color: Colors.white.withValues(alpha: 0.22),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 1.5),
               ),
               alignment: Alignment.center,
               child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Olá,', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.78))),
+              Text('Olá,', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.78))),
               Text('$name 👋', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white, height: 1.1)),
             ])),
             _IconBtn(badge: badgeCount, onTap: () {}, child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 18)),
@@ -391,14 +403,14 @@ class _Header extends StatelessWidget {
             _IconBtn(onTap: onSettings, child: const Icon(Icons.settings_outlined, color: Colors.white, size: 18)),
           ]),
           const SizedBox(height: 16),
-          Text('Status das suas garantias', style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.82))),
+          Text('Status das suas garantias', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.82))),
           const SizedBox(height: 4),
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('$healthPct%', style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1.6, height: 1.0)),
             const SizedBox(width: 8),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('protegido', style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.86))),
+              child: Text('protegido', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.86))),
             ),
           ]),
           const SizedBox(height: 18),
@@ -411,6 +423,65 @@ class _Header extends StatelessWidget {
             const SizedBox(width: 14),
             _LegendDot(color: const Color(0xFFE6CDB5), count: nExpired, label: 'Expiradas'),
           ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _WebDownloadCard extends StatelessWidget {
+  const _WebDownloadCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _brand.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.download_rounded, color: _brand),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Baixar APK',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _dark),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Download direto da versão Android.',
+                  style: TextStyle(fontSize: 12.5, color: _muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          WebApkDownloadLink(
+            url: Uri.base.resolve('/app-release.apk').toString(),
+            label: 'Download',
+          ),
         ],
       ),
     );
@@ -432,7 +503,7 @@ class _IconBtn extends StatelessWidget {
           width: 38, height: 38,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(11),
-            color: Colors.white.withOpacity(0.16),
+            color: Colors.white.withValues(alpha: 0.16),
           ),
           alignment: Alignment.center,
           child: child,
@@ -468,7 +539,7 @@ class _SegmentBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: Container(
         height: 10,
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         child: total == 0 ? null : Row(children: [
           if (nActive > 0) Flexible(flex: nActive, child: Container(color: const Color(0xFF7FE5B5))),
           if (nSoon > 0) Flexible(flex: nSoon, child: Container(color: const Color(0xFFFFD58A))),
@@ -492,7 +563,7 @@ class _LegendDot extends StatelessWidget {
       const SizedBox(width: 6),
       Text('$count', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
       const SizedBox(width: 3),
-      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+      Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
     ]);
   }
 }
@@ -520,7 +591,7 @@ class _KpiCard extends StatelessWidget {
         Container(
           width: 30, height: 30,
           decoration: BoxDecoration(
-            color: tint.withOpacity(0.08),
+            color: tint.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: tint, size: 16),
@@ -559,14 +630,14 @@ class _ActionTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: primary ? null : Border.all(color: _border),
           boxShadow: primary
-              ? [BoxShadow(color: _brand.withOpacity(0.2), blurRadius: 18, offset: const Offset(0, 6))]
+              ? [BoxShadow(color: _brand.withValues(alpha: 0.2), blurRadius: 18, offset: const Offset(0, 6))]
               : const [BoxShadow(color: Color(0x08141E28), blurRadius: 2, offset: Offset(0, 1))],
         ),
         child: Row(children: [
           Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
-              color: primary ? Colors.white.withOpacity(0.18) : _bg,
+              color: primary ? Colors.white.withValues(alpha: 0.18) : _bg,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: primary ? Colors.white : const Color(0xFF4A5563), size: 20),
@@ -576,7 +647,7 @@ class _ActionTile extends StatelessWidget {
             Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primary ? Colors.white : _dark, letterSpacing: -0.2, height: 1.2)),
             const SizedBox(height: 2),
             Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, color: primary ? Colors.white.withOpacity(0.82) : _light)),
+              style: TextStyle(fontSize: 11.5, color: primary ? Colors.white.withValues(alpha: 0.82) : _light)),
           ])),
         ]),
       ),
@@ -778,9 +849,9 @@ class _TipCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: _brand.withOpacity(0.04),
+        color: _brand.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _brand.withOpacity(0.12)),
+        border: Border.all(color: _brand.withValues(alpha: 0.12)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -830,7 +901,7 @@ class _BottomNav extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 18),
             decoration: BoxDecoration(
               color: _brand, shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: _brand.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6))],
+              boxShadow: [BoxShadow(color: _brand.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
             ),
             child: const Icon(Icons.add, color: Colors.white, size: 26),
           ),

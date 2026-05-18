@@ -34,8 +34,9 @@ class Product {
       categoryId: data['categoryId'] as String? ?? '',
       purchaseDate: (data['purchaseDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       warrantyEndDate: (data['warrantyEndDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      guaranteeType: GuaranteeType.values.byName(
-        (data['guaranteeType'] as String?) ?? GuaranteeType.standard.name,
+      guaranteeType: GuaranteeType.values.firstWhere(
+        (e) => e.name == ((data['guaranteeType'] as String?) ?? ''),
+        orElse: () => GuaranteeType.standard,
       ),
       noteImageUrl: data['noteImageUrl'] as String?,
       description: data['description'] as String?,

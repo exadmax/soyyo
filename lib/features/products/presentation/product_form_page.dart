@@ -87,8 +87,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final img = await ImagePicker().pickImage(source: source);
-    if (img != null) setState(() => _selectedImage = img);
+    try {
+      final img = await ImagePicker().pickImage(source: source);
+      if (img != null) setState(() => _selectedImage = img);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              source == ImageSource.camera
+                  ? 'Câmera não disponível neste dispositivo'
+                  : 'Não foi possível acessar a galeria',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -96,6 +110,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
     if (_selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione uma categoria')),
+      );
+      return;
+    }
+    if (!_warrantyEndDate.isAfter(_purchaseDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O vencimento da garantia deve ser posterior à data de compra')),
       );
       return;
     }
